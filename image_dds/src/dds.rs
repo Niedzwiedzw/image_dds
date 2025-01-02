@@ -1,11 +1,8 @@
-use std::ops::Range;
-
-use ddsfile::{Caps2, D3DFormat, Dds, DxgiFormat, FourCC};
-use thiserror::Error;
-
-use crate::{
-    CreateImageError, ImageFormat, Mipmaps, Quality, Surface, SurfaceError, SurfaceRgba32Float,
-    SurfaceRgba8,
+use {
+    crate::{CreateImageError, ImageFormat, Mipmaps, Quality, Surface, SurfaceError, SurfaceRgba32Float, SurfaceRgba8},
+    ddsfile::{Caps2, D3DFormat, Dds, DxgiFormat, FourCC},
+    std::ops::Range,
+    thiserror::Error,
 };
 
 /// Errors that can occur when converting to DDS.
@@ -23,12 +20,7 @@ pub enum CreateDdsError {
 /// Encode `image` to a 2D DDS file with the given `format`.
 ///
 /// The number of mipmaps generated depends on the `mipmaps` parameter.
-pub fn dds_from_image(
-    image: &image::RgbaImage,
-    format: ImageFormat,
-    quality: Quality,
-    mipmaps: Mipmaps,
-) -> Result<Dds, CreateDdsError> {
+pub fn dds_from_image(image: &image::RgbaImage, format: ImageFormat, quality: Quality, mipmaps: Mipmaps) -> Result<Dds, CreateDdsError> {
     // Assume all images are 2D for now.
     SurfaceRgba8::from_image(image)
         .encode(format, quality, mipmaps)?
@@ -40,12 +32,7 @@ pub fn dds_from_image(
 /// Encode `image` to a 2D DDS file with the given `format`.
 ///
 /// The number of mipmaps generated depends on the `mipmaps` parameter.
-pub fn dds_from_imagef32(
-    image: &image::Rgba32FImage,
-    format: ImageFormat,
-    quality: Quality,
-    mipmaps: Mipmaps,
-) -> Result<Dds, CreateDdsError> {
+pub fn dds_from_imagef32(image: &image::Rgba32FImage, format: ImageFormat, quality: Quality, mipmaps: Mipmaps) -> Result<Dds, CreateDdsError> {
     // Assume all images are 2D for now.
     SurfaceRgba32Float::from_image(image)
         .encode(format, quality, mipmaps)?
@@ -76,11 +63,7 @@ impl<T: AsRef<[u8]>> Surface<T> {
                 Dds::new_dxgi(ddsfile::NewDxgiParams {
                     height: self.height,
                     width: self.width,
-                    depth: if self.depth > 1 {
-                        Some(self.depth)
-                    } else {
-                        None
-                    },
+                    depth: if self.depth > 1 { Some(self.depth) } else { None },
                     format,
                     mipmap_levels: (self.mipmaps > 1).then_some(self.mipmaps),
                     array_layers: (self.layers > 1 && self.layers != 6).then_some(self.layers),
@@ -100,15 +83,10 @@ impl<T: AsRef<[u8]>> Surface<T> {
                     Dds::new_d3d(ddsfile::NewD3dParams {
                         height: self.height,
                         width: self.width,
-                        depth: if self.depth > 1 {
-                            Some(self.depth)
-                        } else {
-                            None
-                        },
+                        depth: if self.depth > 1 { Some(self.depth) } else { None },
                         format,
                         mipmap_levels: (self.mipmaps > 1).then_some(self.mipmaps),
-                        caps2: (self.layers == 6)
-                            .then_some(Caps2::CUBEMAP | Caps2::CUBEMAP_ALLFACES),
+                        caps2: (self.layers == 6).then_some(Caps2::CUBEMAP | Caps2::CUBEMAP_ALLFACES),
                     })
                 })
             })
@@ -147,12 +125,7 @@ impl<T: AsRef<[u8]>> SurfaceRgba8<T> {
     /// Encode a `width` x `height` x `depth` RGBA8 surface to a DDS file with the given `format`.
     ///
     /// The number of mipmaps generated depends on the `mipmaps` parameter.
-    pub fn encode_dds(
-        &self,
-        format: ImageFormat,
-        quality: Quality,
-        mipmaps: Mipmaps,
-    ) -> Result<Dds, CreateDdsError> {
+    pub fn encode_dds(&self, format: ImageFormat, quality: Quality, mipmaps: Mipmaps) -> Result<Dds, CreateDdsError> {
         self.encode(format, quality, mipmaps)?.to_dds()
     }
 }
@@ -164,11 +137,7 @@ impl SurfaceRgba8<Vec<u8>> {
     }
 
     /// Decode a specific range of layers and mipmaps from `dds` to an RGBA8 surface.
-    pub fn decode_layers_mipmaps_dds(
-        dds: &Dds,
-        layers: Range<u32>,
-        mipmaps: Range<u32>,
-    ) -> Result<SurfaceRgba8<Vec<u8>>, SurfaceError> {
+    pub fn decode_layers_mipmaps_dds(dds: &Dds, layers: Range<u32>, mipmaps: Range<u32>) -> Result<SurfaceRgba8<Vec<u8>>, SurfaceError> {
         Surface::from_dds(dds)?.decode_layers_mipmaps_rgba8(layers, mipmaps)
     }
 }
@@ -180,19 +149,14 @@ impl SurfaceRgba32Float<Vec<f32>> {
     }
 
     /// Decode a specific range of layers and mipmaps from `dds` to an RGBAF32 surface.
-    pub fn decode_layers_mipmaps_dds(
-        dds: &Dds,
-        layers: Range<u32>,
-        mipmaps: Range<u32>,
-    ) -> Result<SurfaceRgba32Float<Vec<f32>>, SurfaceError> {
+    pub fn decode_layers_mipmaps_dds(dds: &Dds, layers: Range<u32>, mipmaps: Range<u32>) -> Result<SurfaceRgba32Float<Vec<f32>>, SurfaceError> {
         Surface::from_dds(dds)?.decode_layers_mipmaps_rgbaf32(layers, mipmaps)
     }
 }
 
 fn array_layer_count(dds: &Dds) -> u32 {
     // Array layers for DDS are calculated differently for cube maps.
-    if matches!(&dds.header10, Some(header10) if header10.misc_flag == ddsfile::MiscFlag::TEXTURECUBE)
-    {
+    if matches!(&dds.header10, Some(header10) if header10.misc_flag == ddsfile::MiscFlag::TEXTURECUBE) {
         dds.get_num_array_layers().max(1) * 6
     } else {
         dds.get_num_array_layers().max(1)
@@ -258,6 +222,7 @@ fn image_format_from_d3d(format: D3DFormat) -> Option<ImageFormat> {
         // BGRA is also ARGB depending on how we look at the bytes.
         D3DFormat::A4R4G4B4 => Some(ImageFormat::Bgra4Unorm),
         D3DFormat::A8R8G8B8 => Some(ImageFormat::Bgra8Unorm),
+        D3DFormat::A8B8G8R8 => Some(ImageFormat::Bgra8Unorm),
         D3DFormat::R8G8B8 => Some(ImageFormat::Bgr8Unorm),
         _ => None,
     }
@@ -339,9 +304,7 @@ fn dxgi_from_image_format(value: ImageFormat) -> Option<DxgiFormat> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    use strum::IntoEnumIterator;
+    use {super::*, strum::IntoEnumIterator};
 
     #[test]
     fn dds_to_from_surface() {
@@ -356,10 +319,7 @@ mod tests {
                 image_format,
                 data: data.as_slice(),
             };
-            assert_eq!(
-                surface,
-                Surface::from_dds(&surface.to_dds().unwrap()).unwrap()
-            );
+            assert_eq!(surface, Surface::from_dds(&surface.to_dds().unwrap()).unwrap());
         }
     }
 
@@ -376,10 +336,7 @@ mod tests {
                 image_format,
                 data: data.as_slice(),
             };
-            assert_eq!(
-                surface,
-                Surface::from_dds(&surface.to_dds().unwrap()).unwrap()
-            );
+            assert_eq!(surface, Surface::from_dds(&surface.to_dds().unwrap()).unwrap());
         }
     }
 }
